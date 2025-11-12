@@ -21,12 +21,8 @@ def sample_action(
     agent: AgentID,
 ) -> ActionType:
     agent_obs = obs[agent]
-    if isinstance(agent_obs, dict) and "action_mask" in agent_obs:
-        legal_actions = np.flatnonzero(agent_obs["action_mask"])
-        if len(legal_actions) == 0:
-            return 0
-        return random.choice(legal_actions)
-    return env.action_space(agent).sample()
+    mask = agent_obs.get("action_mask", None) if isinstance(agent_obs, dict) else None
+    return env.action_space(agent).sample(mask=mask)
 
 
 def parallel_api_test(par_env: ParallelEnv, num_cycles=1000):
