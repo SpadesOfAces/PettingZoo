@@ -95,15 +95,29 @@ def check_environment_deterministic_parallel(env1, env2, num_cycles):
     iter = 0
     max_env_iters = num_cycles * len(env1.agents)
 
-    env1.reset(seed=42)
-    env2.reset(seed=42)
+    obs1, infos1 = env1.reset(seed=42)
+    obs2, infos2 = env2.reset(seed=42)
 
     seed_action_spaces(env1)
     seed_action_spaces(env2)
 
+    def get_mask(obs, infos):
+        return (
+            obs.get("action_mask")
+            if (isinstance(obs, dict) and "action_mask" in obs)
+            else (infos.get("action_mask") if "action_mask" in infos else None)
+        )
+
     while env1.agents:
-        actions1 = {agent: env1.action_space(agent).sample() for agent in env1.agents}
-        actions2 = {agent: env2.action_space(agent).sample() for agent in env2.agents}
+
+        masks1 = {agent: get_mask(obs1[agent], infos1[agent]) for agent in env1.agents}
+        masks2 = {agent: get_mask(obs2[agent], infos2[agent]) for agent in env2.agents}
+
+        for agent in env1.agents:
+            assert data_equivalence(masks1[agent], masks2[agent]), f"Incorrect action mask for {agent}: {masks1[agent]} {masks2[agent]}"
+
+        actions1 = {agent: env1.action_space(agent).sample(masks1[agent]) for agent in env1.agents}
+        actions2 = {agent: env2.action_space(agent).sample(masks2[agent]) for agent in env2.agents}
 
         assert data_equivalence(actions1, actions2), "Incorrect action seeding"
 
